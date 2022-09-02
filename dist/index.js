@@ -29,6 +29,12 @@ let header = (doc, invoice) => {
       .moveDown();
     }
 
+    if(invoice.header.company_detail){
+      doc.fontSize(12)
+      .text(invoice.header.company_detail, 50, 75)
+      .moveDown();
+    }
+
     if(invoice.header.company_address.length!==0){
       companyAddress(doc, invoice.header.company_address);
     }
@@ -97,6 +103,7 @@ let invoiceTable = (doc, invoice) => {
     const item = invoice.items[i];
     const position = invoiceTableTop + (i + 1) * 30;
     const itemTax = item.hasOwnProperty("tax")? item.tax : invoice.options.hasOwnProperty("defaultTax")? invoice.options.defaultTax: "";
+    const itemPrice = 
     tableRow(
       doc,
       position,
@@ -104,7 +111,7 @@ let invoiceTable = (doc, invoice) => {
       item.description,
       formatCurrency(item.price, currencySymbol),
       item.quantity,
-      invoice.options.itemTotalExcludesTax?item.price * item.quantity:formatCurrency(applyTaxIfAvailable(item.price, item.quantity, itemTax), currencySymbol), 
+      invoice.options.itemTotalExcludesTax ? ((item.price * item.quantity).toFixed(2)) : (formatCurrency(applyTaxIfAvailable(item.price, item.quantity, itemTax), currencySymbol)), 
       checkIfTaxAvailable(itemTax)
     );
     subtotal += item.price * item.quantity;
