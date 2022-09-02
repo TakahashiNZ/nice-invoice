@@ -5,6 +5,8 @@ const PDFDocument = require("pdfkit");
 let niceInvoice = (invoice, path) => {
   let doc = new PDFDocument({ size: "A4", margin: 40 });
 
+  if(!invoice.hasOwnProperty("options"))invoice.options = {};
+
   header(doc, invoice);
   customerInformation(doc, invoice);
   invoiceTable(doc, invoice);
@@ -36,7 +38,7 @@ let header = (doc, invoice) => {
 let customerInformation = (doc, invoice)=>{
   doc.fillColor("#444444")
   .fontSize(20)
-  .text("Invoice", 50, 160);
+  .text(invoice.options.invoiceLabel || "Invoice", 50, 160);
 
   generateHr(doc, 185);
 
@@ -58,10 +60,8 @@ let customerInformation = (doc, invoice)=>{
     .text(invoice.shipping.address, 300, customerInformationTop + 15)
     .text(
       invoice.shipping.city +
-        ", " +
-        invoice.shipping.state +
-        ", " +
-        invoice.shipping.country,
+      (invoice.shipping.state ? (", " + invoice.shipping.state) : "") +
+      (invoice.shipping.country ? (", " + invoice.shipping.country) : ""),
       300,
       customerInformationTop + 30
     )
@@ -73,7 +73,7 @@ let customerInformation = (doc, invoice)=>{
 let invoiceTable = (doc, invoice) => {
   let i;
   const invoiceTableTop = 330;
-  const currencySymbol = invoice.currency_symbol;
+  const currencySymbol = invoice.currency_symbol || "$";
 
   doc.font("Helvetica-Bold");
   tableRow(
@@ -83,15 +83,20 @@ let invoiceTable = (doc, invoice) => {
     "Description",
     "Unit Cost",
     "Quantity",
-    "Total",
-    "Tax"
+    invoice.options.itemTotalLabel || "Total",
+    invoice.options.taxLabel || "Tax"
   );
   generateHr(doc, invoiceTableTop + 20);
   doc.font("Helvetica");
 
+  var subtotal =0;
+  var tax =0;
+  var total =0;
+
   for (i = 0; i < invoice.items.length; i++) {
     const item = invoice.items[i];
     const position = invoiceTableTop + (i + 1) * 30;
+    const itemTax = item.hasOwnProperty("tax")? item.tax : invoice.options.hasOwnProperty("defaultTax")? invoice.options.defaultTax: "";
     tableRow(
       doc,
       position,
@@ -99,9 +104,12 @@ let invoiceTable = (doc, invoice) => {
       item.description,
       formatCurrency(item.price, currencySymbol),
       item.quantity,
-      formatCurrency(applyTaxIfAvailable(item.price, item.quantity, item.tax), currencySymbol), 
-      checkIfTaxAvailable(item.tax)
+      invoice.options.itemTotalExcludesTax?item.price * item.quantity:formatCurrency(applyTaxIfAvailable(item.price, item.quantity, itemTax), currencySymbol), 
+      checkIfTaxAvailable(itemTax)
     );
+    subtotal += item.price * item.quantity;
+    tax += applyTaxIfAvailable(item.price, item.quantity, itemTax) - (item.price * item.quantity)
+    total += applyTaxIfAvailable(item.price, item.quantity, itemTax);
 
     generateHr(doc, position + 20);
   }
@@ -112,16 +120,27 @@ let invoiceTable = (doc, invoice) => {
     doc,
     subtotalPosition,
     "Subtotal",
-    formatCurrency(invoice.total, currencySymbol)
+    formatCurrency(invoice.subtotal || subtotal, currencySymbol)
   );
 
-  const paidToDatePosition = subtotalPosition + 20;
+  if(invoice.options.showTaxTotal){
+    const taxPosition = subtotalPosition + 20;
+    doc.font("Helvetica-Bold");
+    totalTable(
+      doc,
+      taxPosition,
+      invoice.options.taxLabel || "Tax",
+      formatCurrency(invoice.tax || tax, currencySymbol)
+    );
+  }
+
+  const paidToDatePosition = subtotalPosition + 20 + (invoice.options.showTaxTotal ? 20 : 0);
   doc.font("Helvetica-Bold");
   totalTable(
     doc,
     paidToDatePosition,
     "Total",
-    formatCurrency(invoice.total, currencySymbol)
+    formatCurrency(invoice.total || total, currencySymbol)
   );
 }
 
