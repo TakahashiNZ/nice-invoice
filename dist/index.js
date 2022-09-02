@@ -103,7 +103,6 @@ let invoiceTable = (doc, invoice) => {
     const item = invoice.items[i];
     const position = invoiceTableTop + (i + 1) * 30;
     const itemTax = item.hasOwnProperty("tax")? item.tax : invoice.options.hasOwnProperty("defaultTax")? invoice.options.defaultTax: "";
-    const itemPrice = 
     tableRow(
       doc,
       position,
