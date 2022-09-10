@@ -2,18 +2,25 @@
 const fs = require("fs");
 const PDFDocument = require("pdfkit");
 
-let niceInvoice = (invoice, path) => {
+let niceInvoice = (invoice, path, cb) => {
   let doc = new PDFDocument({ size: "A4", margin: 40 });
-
+  let invoiceTableTop = 330;
+	
   if(!invoice.hasOwnProperty("options"))invoice.options = {};
 
   header(doc, invoice);
   customerInformation(doc, invoice);
-  invoiceTable(doc, invoice);
+  if(invoice.hasOwnProperty("usageSummary")){
+	  usageSummary(doc, invoice);
+	  invoiceTableTop = 400;
+  }
+  invoiceTable(doc, invoice, invoiceTableTop);
   footer(doc, invoice);
 
   doc.end();
   doc.pipe(fs.createWriteStream(path));
+  
+  if(cb)cb();
 }
 
 let header = (doc, invoice) => {
@@ -76,9 +83,37 @@ let customerInformation = (doc, invoice)=>{
   generateHr(doc, 252);
 }
 
-let invoiceTable = (doc, invoice) => {
+let usageSummary = (doc, invoice) => {
+	const usageSummaryTop = 280;
+	
+	doc.fillColor("#444444")
+	.fontSize(15)
+	.text(invoice.usageSummary.usageLabel || "Usage Summary", 50, usageSummaryTop + 10);
+	
+	
+	doc.fontSize(10)
+	.font("Helvetica")
+	
+    .text("Previous Reading:", 50, usageSummaryTop + 35)
+    .text(invoice.usageSummary.prevRead, 150, usageSummaryTop + 35)
+    .text("Current Reading:", 50, usageSummaryTop + 50)
+    .text(invoice.usageSummary.currentRead, 150, usageSummaryTop + 50)	
+    .text("Total Usage:", 50, usageSummaryTop + 65)
+    .text(invoice.usageSummary.usage, 150, usageSummaryTop + 65)
+	
+    .text("Previous Read Date:", 300, usageSummaryTop + 35)
+    .text(invoice.usageSummary.prevDate, 400, usageSummaryTop + 35)	
+    .text("Current Read Date:", 300, usageSummaryTop + 50)
+	.text(invoice.usageSummary.currentDate, 400, usageSummaryTop + 50)	
+    .text("Number of Days:", 300, usageSummaryTop + 65)
+	.text(invoice.usageSummary.days, 400, usageSummaryTop + 65)
+		
+    
+    .moveDown();
+}
+
+let invoiceTable = (doc, invoice, invoiceTableTop) => {
   let i;
-  const invoiceTableTop = 330;
   const currencySymbol = invoice.currency_symbol || "$";
 
   doc.font("Helvetica-Bold");
